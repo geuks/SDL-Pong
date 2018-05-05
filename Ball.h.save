@@ -1,0 +1,12 @@
+#ifndef BALL_H_INCLUDED
+#define BALL_H_INCLUDED
+
+typedef struct ball{
+        SDL_Rect Rect;
+        SDL_Texture *Texture;
+        double speedY;
+        double speedX;
+        double angle;
+}ball;
+
+#endif // BALL_H_INCLUDED

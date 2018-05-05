@@ -1,0 +1,16 @@
+#ifndef OBJECTPOS_H_INCLUDED
+#define OBJECTPOS_H_INCLUDED
+
+typedef struct setRect(){
+
+}
+
+typedef struct pos{
+        double X;
+        double Y;
+}pos;
+
+//PROTOTYPES
+extern void setRect(SDL_Rect *t,int h,int w,int x,int y);
+
+#endif // OBJECTPOS_H_INCLUDED

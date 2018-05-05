@@ -1,0 +1,446 @@
+#include "Game.h"
+
+
+/* *********************************************************************************
+	 *_____BUT:Affiche la map du jeu
+	 *__ENTREE:1 variable de type game
+	 *__SORTIE:
+***********************************************************************************/
+void renderMap(game *myGame){
+        //Initialise la ligne du milieu
+        setRect(&myGame->Map.middleLine,SCREEN_HEIGHT-(DECALLAGE_LINE*MIN2),MIN2,SCREEN_WIDTH/MIN2,DECALLAGE_LINE);
+        //Initialise la ligne du haut
+        setRect(&myGame->Map.upperLine,LINE_SIZE,SCREEN_WIDTH-(DECALLAGE_LINE*MIN2),DECALLAGE_LINE,DECALLAGE_LINE);
+        //Initialise la ligne du bas
+        setRect(&myGame->Map.lowerLine,LINE_SIZE,SCREEN_WIDTH-(DECALLAGE_LINE*MIN2),DECALLAGE_LINE,SCREEN_HEIGHT-DECALLAGE_LINE);
+
+        //Affiche les lignes
+        renderRect(myGame->Renderer, &myGame->Map.middleLine);
+        renderRect(myGame->Renderer, &myGame->Map.upperLine);
+        renderRect(myGame->Renderer, &myGame->Map.lowerLine);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Affiche à l'écran les rackets et la balle
+	 *__ENTREE:1 variable de type game, 1 tableau de pos
+	 *__SORTIE:
+***********************************************************************************/
+void renderPlayersAndBall(game *myGame, pos position[]){
+        //Initialise La racket 
+        setRect(&myGame->Player[PLAYER].Rect,RACKET_HEIGHT,RACKET_WIDTH,position[PLAYER].X,position[PLAYER].Y);
+        setRect(&myGame->Player[IA].Rect,RACKET_HEIGHT,RACKET_WIDTH,position[IA].X,position[IA].Y);
+        setRect(&myGame->Ball.Rect,BALL_SIZE,BALL_SIZE,position[BALL].X,position[BALL].Y);
+
+        renderRect(myGame->Renderer, &myGame->Player[PLAYER].Rect);
+        renderRect(myGame->Renderer, &myGame->Player[IA].Rect);
+        filledCircleRGBA(myGame->Renderer,position[BALL].X+(BALL_SIZE/MIN2),position[BALL].Y+(BALL_SIZE/MIN2),BALL_SIZE/MIN2,RGBA_MAX,RGBA_MAX,RGBA_MAX,RGBA_MAX);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Fait le rendu d'un SDL_Rect à l'écran
+	 *__ENTREE:une variable de type SDL_Renderer, 1 SDL_Rect
+	 *__SORTIE:
+***********************************************************************************/
+void renderRect(SDL_Renderer *r, SDL_Rect *rect){
+        SDL_SetRenderDrawColor(r,RGBA_MAX,RGBA_MAX,RGBA_MAX,RGBA_MAX);
+        SDL_RenderFillRect(r, rect);
+        SDL_SetRenderDrawColor(r,RGBA_MIN,RGBA_MIN,RGBA_MIN,RGBA_MAX);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Initialise les positions des rackets
+	 *__ENTREE:1 variable de type game, 1 tableau de pos, 1 gameState
+	 *__SORTIE:
+***********************************************************************************/
+void initPositions(game *myGame,pos position[], gameState *state){
+        setPos(&position[PLAYER],DECALLAGE_LINE,(SCREEN_HEIGHT/MIN2)-(RACKET_HEIGHT/MIN2));
+        setPos(&position[IA],SCREEN_WIDTH-RACKET_WIDTH-DECALLAGE_LINE,(SCREEN_HEIGHT/MIN2)-(RACKET_HEIGHT/MIN2));
+        if(state->SensHozirontal==LEFT)
+                setPos(&position[BALL],BALL_START_LEFT,SCREEN_HEIGHT/MIN2);
+        else
+                setPos(&position[BALL],BALL_START_RIGHT,SCREEN_HEIGHT/MIN2);
+        myGame->Restart=FALSE;
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Initialise le jeu
+	 *__ENTREE:une variable de type caractère, 5 entier, game,TTF_Font
+	 *__SORTIE:
+***********************************************************************************/
+int gameInit(char *title, int xpos, int ypos, int width, int height, int flags, game *myGame, TTF_Font **font1){
+        myGame->Renderer=NULL;
+        myGame->Texture=NULL;
+        myGame->Window=NULL;
+
+
+        if (!SDL_Init(SDL_INIT_EVERYTHING)>=MIN0){
+                myGame->Window = SDL_CreateWindow(title,xpos,ypos,width,height,flags);
+                if(myGame->Window!=NULL)
+                        myGame->Renderer=SDL_CreateRenderer(myGame->Window,-MIN1,SDL_RENDERER_ACCELERATED);
+                else{
+                         fprintf(stderr, "Erreur d'initialisation de Window Init : %s\n", SDL_GetError());
+                         system("pause");
+                        return EXIT_FAILURE;
+                }
+
+        }else{
+                fprintf(stderr, "Erreur d'initialisation de SDL_Init : %s\n", SDL_GetError());
+                system("pause");
+                return EXIT_FAILURE;
+        }
+
+
+        if(TTF_Init() == -MIN1){
+            fprintf(stderr, "Erreur d'initialisation de TTF_Init : %s\n", TTF_GetError());
+            system("pause");
+            return EXIT_FAILURE;
+        }
+
+        *font1 = TTF_OpenFont(FONT1,FONT_SIZE);
+        if(*font1==NULL){
+                fprintf(stderr, "Erreur d'initialisation de la police: %s\n", TTF_GetError());
+                system("pause");
+                return EXIT_FAILURE;
+        }
+
+        SDL_RenderClear(myGame->Renderer);
+        SDL_RenderPresent(myGame->Renderer);
+
+        return EXIT_SUCCESS;
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:FPS du jeu
+	 *__ENTREE:1 entier
+	 *__SORTIE:
+***********************************************************************************/
+void gameDelay(unsigned int frameLimit){
+        unsigned int ticks = SDL_GetTicks();
+
+        if (frameLimit < ticks)
+                return;
+
+        if (frameLimit > ticks + MAXIMAGEPS)
+                SDL_Delay(MAXIMAGEPS);
+        else
+                SDL_Delay(frameLimit - ticks);
+}
+
+
+
+/* *********************************************************************************
+	 *_____BUT:Détruis les variables
+	 *__ENTREE:1 variable de type game
+	 *__SORTIE:
+***********************************************************************************/
+void gameDestroy(game *myGame){
+        if(myGame->Texture!=NULL)
+                SDL_DestroyTexture(myGame->Texture);
+
+        if(myGame->Renderer!=NULL)
+                SDL_DestroyRenderer(myGame->Renderer);
+
+        if(myGame->Window!=NULL)
+                SDL_DestroyWindow(myGame->Window);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Verifie si une touche est appuiyer
+	 *__ENTREE:une variable de type game,SDL_bool,gameState,pos
+	 *__SORTIE:
+***********************************************************************************/
+void updateEvents(game *myGame,SDL_bool in[], gameState *state,pos *mousePosition){
+	SDL_Event event;
+	while(SDL_PollEvent(&event)){
+		switch (event.type){
+                        case SDL_QUIT:
+                                state->Running=MIN0;
+                        break;
+                        case SDL_KEYDOWN:
+                                in[event.key.keysym.scancode] = SDL_TRUE;
+                        break;
+                        case SDL_KEYUP:
+                                in[event.key.keysym.scancode] = SDL_FALSE;
+                        break;
+                        case SDL_MOUSEMOTION:
+                                mousePosition->X=event.motion.x;
+                                mousePosition->Y=event.motion.y;
+                        break;
+                        case SDL_MOUSEBUTTONDOWN:
+                                if(myGame->Menu.Jouer_isHovered){
+                                        myGame->CanLaunch=SDL_TRUE;
+                                        SDL_Delay(SECOND);
+                                }
+
+                                else if(myGame->Menu.Quitter_isHovered)
+                                        state->Running=MIN0;
+                        default:
+                        break;
+		}
+	}
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Déplace les rackets par rapport au appuie des touches du clavier
+	 *__ENTREE:un tableau de SDL_bool, pos, une variable de type gameState, ball
+	 *__SORTIE:
+***********************************************************************************/
+void updateMovement(SDL_bool in[],pos position[], gameState *state, ball Ball){
+
+        if (in[SDL_SCANCODE_ESCAPE])
+                state->Running = MIN0;
+
+        if(state->Running){
+                if (in[SDL_SCANCODE_UP])
+                        if(position[PLAYER].Y>DECALLAGE_LINE+(LINE_SIZE*MIN2))
+                                position[PLAYER].Y=position[PLAYER].Y-SPEEDPLAYER;
+
+                if (in[SDL_SCANCODE_DOWN])
+                        if(position[PLAYER].Y<(SCREEN_HEIGHT-RACKET_HEIGHT-DECALLAGE_LINE-LINE_SIZE))
+                                position[PLAYER].Y=position[PLAYER].Y+SPEEDPLAYER;
+
+                if (in[SDL_SCANCODE_LEFT])
+                        if(position[IA].Y>DECALLAGE_LINE+(LINE_SIZE*MIN2))
+                                position[IA].Y=position[IA].Y-SPEEDPLAYER;
+
+                if (in[SDL_SCANCODE_RIGHT])
+                        if(position[IA].Y<(SCREEN_HEIGHT-RACKET_HEIGHT-DECALLAGE_LINE-LINE_SIZE))
+                                position[IA].Y=position[IA].Y+SPEEDPLAYER;
+
+                if(state->SensHozirontal==LEFT)
+                        position[BALL].X=position[BALL].X-Ball.speedX;
+                else if(state->SensHozirontal==RIGHT)
+                        position[BALL].X=position[BALL].X+Ball.speedX;
+
+                if(state->SensVertical==UP)
+                        position[BALL].Y=position[BALL].Y-(Ball.angle*Ball.speedY);
+                else if(state->SensVertical==DOWN)
+                        position[BALL].Y=position[BALL].Y+(Ball.angle*Ball.speedY);
+        }
+
+
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:Verifie l'état de la partie
+	 *__ENTREE:Une variable de type game, gameState,SDL_bool
+	 *__SORTIE:
+***********************************************************************************/
+void checkState(game *myGame, gameState *state,SDL_bool *canChangeScore){
+        char strScore[SCORE_MAX];
+
+        if(state->SensHozirontal==LEFT){
+                if(myGame->Ball.Rect.x<=myGame->Player[PLAYER].Rect.x+RACKET_WIDTH){
+                        if((myGame->Ball.Rect.y<myGame->Player[PLAYER].Rect.y+RACKET_HEIGHT) && (myGame->Ball.Rect.y+BALL_SIZE>myGame->Player[PLAYER].Rect.y)){
+                                if(myGame->Ball.Rect.x>myGame->Player[PLAYER].Rect.x){
+                                        state->SensHozirontal=RIGHT;
+                                        myGame->Ball.angle=myGame->Ball.Rect.y+(BALL_SIZE/MIN2);
+                                        normalize(&myGame->Ball.angle,myGame->Player[PLAYER].Rect.y+RACKET_HEIGHT,myGame->Player[PLAYER].Rect.y);
+                                        if(myGame->Ball.angle>MIN1/MIN2){
+                                                myGame->Ball.angle=myGame->Ball.angle-MIN1/MIN2;
+                                        }
+                                }
+                        }
+                        else{
+                                if(myGame->Ball.Rect.x<myGame->Player[PLAYER].Rect.x-DECALLAGE_BALL){
+                                        myGame->Restart=SDL_TRUE;
+
+                                        if(*canChangeScore){
+                                                *canChangeScore=SDL_FALSE;
+
+                                                myGame->Player[PLAYER].Score++;
+                                                printf("%d",myGame->Player[PLAYER].Score);
+                                                sprintf(strScore,"%d",myGame->Player[PLAYER].Score);
+                                                myGame->Player[PLAYER].Score_Surface = TTF_RenderText_Blended(myGame->Menu.font1, strScore, myGame->Color);
+                                        }
+                                }
+                        }
+                }
+        }
+        else if(state->SensHozirontal==RIGHT){
+                if(myGame->Ball.Rect.x+BALL_SIZE>=myGame->Player[IA].Rect.x){
+                        if((myGame->Ball.Rect.y<myGame->Player[IA].Rect.y+RACKET_HEIGHT) && (myGame->Ball.Rect.y+BALL_SIZE>myGame->Player[IA].Rect.y)){
+                                if(myGame->Ball.Rect.x+BALL_SIZE<myGame->Player[IA].Rect.x+RACKET_WIDTH){
+                                        state->SensHozirontal=LEFT;
+                                        myGame->Ball.angle=myGame->Ball.Rect.y+(BALL_SIZE/MIN2);
+                                        normalize(&myGame->Ball.angle,myGame->Player[IA].Rect.y+RACKET_HEIGHT,myGame->Player[IA].Rect.y);
+                                        if(myGame->Ball.angle>MIN1/MIN2){
+                                                myGame->Ball.angle=myGame->Ball.angle-MIN1/MIN2;
+                                        }
+                                }
+                        }
+                        else{
+                                if(myGame->Ball.Rect.x>myGame->Player[IA].Rect.x+DECALLAGE_BALL){
+                                        myGame->Restart=SDL_TRUE;
+
+                                        if(*canChangeScore){
+                                                *canChangeScore=SDL_FALSE;
+                                                myGame->Player[IA].Score++;
+                                                sprintf(strScore,"%d",myGame->Player[IA].Score);
+                                                myGame->Player[IA].Score_Surface = TTF_RenderText_Blended(myGame->Menu.font1, strScore, myGame->Color);
+                                        }
+                                }
+
+                        }
+                }
+        }
+
+        if(state->SensVertical==UP){
+                if(myGame->Ball.Rect.y<=myGame->Map.upperLine.y+LINE_SIZE)
+                                state->SensVertical=DOWN;
+        }
+        else if(state->SensVertical==DOWN){
+                if(myGame->Ball.Rect.y+BALL_SIZE>=myGame->Map.lowerLine.y)
+                               state->SensVertical=UP;
+        }
+
+}
+
+
+/* *********************************************************************************
+	 *_____BUT: Inverse les réels en fonction d'un min et d'un max
+	 *__ENTREE: 3 double
+	 *__SORTIE:
+***********************************************************************************/
+void reverseNb(double *x, double xmax, double xmin) {
+    *x =  (xmax + xmin) - *x;
+}
+
+
+/* *********************************************************************************
+	 *_____BUT: Normalise une valeur en fonction d'un maximum et d'un minimum
+	 *__ENTREE: 3 double
+	 *__SORTIE:
+***********************************************************************************/
+void normalize(double *x,double xmax, double xmin){
+        *x=(*x-xmin)/(xmax-xmin);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:
+	 *__ENTREE:
+	 *__SORTIE:
+***********************************************************************************/
+int checkTime(unsigned int *currentTime,unsigned int *lastTime){
+        *currentTime=SDL_GetTicks();
+        if(*currentTime>*lastTime+SECOND){
+                *lastTime=*currentTime;
+                return MIN1;
+        }
+        return MIN0;
+}
+
+
+/* *********************************************************************************
+	 *_____BUT: Lance la partie de pong
+	 *__ENTREE: une variable de type game, gameState,tableau de pos, pos, SDL_bool
+	 *__SORTIE:
+***********************************************************************************/
+void launchGame(game *myGame, gameState *state,pos position[], pos *mousePosition, SDL_bool *canChangeScore){
+
+        checkState(myGame,state, canChangeScore);
+
+        renderPlayersAndBall(myGame,position);
+        renderMap(myGame);
+
+        setRect(&myGame->Player[PLAYER].Score_Rect,SCORE_HEIGHT,SCORE_WIDTH,SCORE_X-SCORE_DECALAGE,SCORE_Y);
+        setRect(&myGame->Player[IA].Score_Rect,SCORE_HEIGHT,SCORE_WIDTH,SCORE_X+SCORE_DECALAGE,SCORE_Y);
+        renderMenu(myGame, myGame->Player[PLAYER].Score_Surface, myGame->Player[PLAYER].Score_Rect, MIN0);
+        renderMenu(myGame, myGame->Player[IA].Score_Surface, myGame->Player[IA].Score_Rect, MIN0);
+
+        SDL_RenderPresent(myGame->Renderer);
+        SDL_RenderClear(myGame->Renderer);
+        SDL_DestroyTexture(myGame->Texture);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT: Affiche un SDL_Rect à l'écran
+	 *__ENTREE: une variable de type game, une variable de type SDL_Surface, SDL_Rect, et un entier.
+	 *__SORTIE:
+***********************************************************************************/
+void renderMenu(game *myGame, SDL_Surface * s, SDL_Rect r, int x){
+        SDL_Texture *t1=NULL;
+
+        SDL_SetRenderDrawColor(myGame->Renderer,RGBA_GRAY,RGBA_GRAY,RGBA_GRAY,RGBA_MAX);
+
+        SDL_SetRenderTarget(myGame->Renderer, myGame->Texture);
+
+        if(x)
+                SDL_RenderFillRect(myGame->Renderer, &r);
+        t1 = SDL_CreateTextureFromSurface(myGame->Renderer,s);
+
+        SDL_SetRenderTarget(myGame->Renderer, NULL);
+
+        SDL_RenderCopy(myGame->Renderer,t1,NULL,&r);
+
+        SDL_SetRenderDrawColor(myGame->Renderer,RGBA_MIN,RGBA_MIN,RGBA_MIN,RGBA_MAX);
+
+        SDL_DestroyTexture(t1);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT:  Lance l'affichage du menu
+	 *__ENTREE:  une variable de type game, et une variable de type pos
+	 *__SORTIE:
+***********************************************************************************/
+void launchMenu(game *myGame,pos *mousePosition){
+        setRect(&myGame->Menu.Name_Rect,MENU_NAME_SIZE_HEIGHT,MENU_NAME_SIZE_WIDTH,(SCREEN_WIDTH/MIN2)-((MENU_NAME_SIZE_WIDTH)/MIN2),MENU_NAME_HEIGHT);
+        setRect(&myGame->Menu.Jouer_Rect,MENU_HEIGHT,MENU_WIDTH,(SCREEN_WIDTH/MIN2)-(MENU_WIDTH/MIN2),SCREEN_HEIGHT/MIN2-DECALLAGE_MENU);
+        setRect(&myGame->Menu.Quitter_Rect,MENU_HEIGHT,MENU_WIDTH,(SCREEN_WIDTH/MIN2)-(MENU_WIDTH/MIN2),(SCREEN_HEIGHT/MIN2));
+
+        renderMenu(myGame, myGame->Menu.Jouer_Surface, myGame->Menu.Jouer_Rect, MIN1);
+        renderMenu(myGame, myGame->Menu.Quitter_Surface, myGame->Menu.Quitter_Rect, MIN1);
+        renderMenu(myGame, myGame->Menu.Name_Surface, myGame->Menu.Name_Rect, MIN0);
+
+        if(!isHoverButton(myGame->Menu.Jouer_Rect, *mousePosition)){
+                myGame->Color.b=RGBA_MIN;
+                myGame->Menu.Jouer_Surface = TTF_RenderText_Blended(myGame->Menu.font1, JOUER, myGame->Color);
+                myGame->Menu.Jouer_isHovered=SDL_TRUE;
+        }
+        else if(isHoverButton(myGame->Menu.Jouer_Rect, *mousePosition)){
+                myGame->Color.b=RGBA_MAX;
+                myGame->Menu.Jouer_Surface = TTF_RenderText_Blended(myGame->Menu.font1, JOUER, myGame->Color);
+                myGame->Menu.Jouer_isHovered=SDL_FALSE;
+        }
+
+        if (!isHoverButton(myGame->Menu.Quitter_Rect, *mousePosition)){
+                myGame->Color.b=RGBA_MIN;
+                myGame->Menu.Quitter_Surface = TTF_RenderText_Blended(myGame->Menu.font1, QUITTER, myGame->Color);
+                myGame->Menu.Quitter_isHovered=SDL_TRUE;
+        }
+        else if(isHoverButton(myGame->Menu.Quitter_Rect, *mousePosition)){
+                myGame->Color.b=RGBA_MAX;
+                myGame->Menu.Quitter_Surface = TTF_RenderText_Blended(myGame->Menu.font1, QUITTER, myGame->Color);
+                myGame->Menu.Quitter_isHovered=SDL_FALSE;
+        }
+
+        SDL_RenderPresent(myGame->Renderer);
+        SDL_RenderClear(myGame->Renderer);
+        SDL_DestroyTexture(myGame->Texture);
+}
+
+
+/* *********************************************************************************
+	 *_____BUT: Permet de savoir si la souris et sur un des boutons passé en paramètre
+	 *__ENTREE: une variable de type SDL_Rect, et une variable de type pos
+	 *__SORTIE: SDL_bool
+***********************************************************************************/
+SDL_bool isHoverButton(SDL_Rect r, pos mousePosition){
+        if((mousePosition.X>r.x)&&(mousePosition.X<r.x+MENU_WIDTH)){
+                if((mousePosition.Y>r.y)&&(mousePosition.Y<r.y+MENU_HEIGHT))
+                   return SDL_FALSE;
+        }
+
+        return SDL_TRUE;
+}

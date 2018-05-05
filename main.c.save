@@ -1,0 +1,85 @@
+﻿#include "Game.h"
+
+int main(int argc, char *argv[])
+{
+        //initialisation
+        game myGame;
+        gameState state;
+        SDL_bool key[SDL_NUM_SCANCODES]={SDL_FALSE};
+        pos position[MAXPLAYER],*mousePosition=NULL;
+        unsigned int frameLimit,lastTime=MIN0,currentTime;
+        char strScore[SCORE_MAX];
+        int canChangeScore=MIN0;
+
+
+        if (!gameInit(NOM_JEU, SDL_WINDOWPOS_CENTERED,SDL_WINDOWPOS_CENTERED,SCREEN_WIDTH,SCREEN_HEIGHT,SDL_WINDOW_SHOWN,&myGame,&myGame.Menu.font1)){
+                mousePosition = malloc(sizeof(pos));
+
+                myGame.CanLaunch = SDL_FALSE;
+                myGame.Color.r = RGBA_MAX;
+                myGame.Color.g = RGBA_MAX;
+                myGame.Color.b = RGBA_MAX;
+                myGame.Color.a = RGBA_MAX;
+                myGame.Menu.Jouer_isHovered = SDL_FALSE;
+                myGame.Menu.Quitter_isHovered = SDL_FALSE;
+                state.SensHozirontal=LEFT;
+                state.SensVertical=UP;
+                myGame.Surface = SDL_GetWindowSurface(myGame.Window);
+                myGame.Ball.speedY=SPEEDY;
+                myGame.Ball.speedX=SPEEDX;
+                myGame.Ball.angle=MIN1/MIN2;
+                myGame.Player[PLAYER].centre = RACKET_HEIGHT/MIN2;
+                myGame.Player[PLAYER].Score=MIN0;
+                myGame.Player[IA].centre = RACKET_HEIGHT/MIN2;
+                myGame.Player[IA].Score=MIN0;
+                state.Running=MIN1;
+
+                myGame.Menu.Name_Surface = TTF_RenderText_Blended(myGame.Menu.font1, NAME, myGame.Color);
+                myGame.Menu.Jouer_Surface = TTF_RenderText_Blended(myGame.Menu.font1, JOUER, myGame.Color);
+                myGame.Menu.Quitter_Surface = TTF_RenderText_Blended(myGame.Menu.font1, QUITTER, myGame.Color);
+                sprintf(strScore,"%d",myGame.Player[PLAYER].Score);
+                myGame.Player[PLAYER].Score_Surface = TTF_RenderText_Blended(myGame.Menu.font1, strScore, myGame.Color);
+                sprintf(strScore,"%d",myGame.Player[IA].Score);
+                myGame.Player[IA].Score_Surface = TTF_RenderText_Blended(myGame.Menu.font1, strScore, myGame.Color);
+
+                initPositions(&myGame,position,&state);
+
+                myGame.Texture=SDL_CreateTexture(myGame.Renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET,SCREEN_WIDTH,SCREEN_HEIGHT);
+
+                while(state.Running){
+                        updateEvents(&myGame,key,&state,mousePosition);
+
+                        if(!myGame.CanLaunch)
+                                launchMenu(&myGame,mousePosition);
+                        else{
+                                if(myGame.Restart==TRUE){
+                                        if(checkTime(&currentTime,&lastTime)){
+                                                initPositions(&myGame,position,&state);
+                                                canChangeScore++;
+                                        }
+                                }
+                                else{
+                                        launchGame(&myGame,&state,position,mousePosition,&canChangeScore);
+                                        updateMovement(key,position,&state,myGame.Ball);
+                                }
+                        }
+
+                        gameDelay(frameLimit);
+                        frameLimit = SDL_GetTicks() + MAXIMAGEPS;  //1/60(FPS) * 1000 = 16.6
+                }
+
+                SDL_DestroyWindow(myGame.Window);
+                printf("Programme fonctionnel!\n");
+
+                free(mousePosition);
+                gameDestroy(&myGame);
+
+                return EXIT_SUCCESS;
+
+        }else{
+                return EXIT_FAILURE;
+        }
+
+        TTF_Quit();
+        SDL_Quit();
+}

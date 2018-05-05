@@ -1,0 +1,13 @@
+#ifndef PLAYER_H_INCLUDED
+#define PLAYER_H_INCLUDED
+
+#include<SDL2\SDL.h>
+
+typedef struct player{
+        SDL_Rect Rect;
+        double centre;
+        int Score;
+}player;
+
+
+#endif // PLAYER_H_INCLUDED

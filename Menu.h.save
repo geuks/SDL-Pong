@@ -1,0 +1,14 @@
+#ifndef MENU_H_INCLUDED
+#define MENU_H_INCLUDED
+
+typedef struct menu{
+        SDL_Rect Name_Rect;
+        SDL_Surface *Name_Surface;
+        SDL_bool Name_isH
+        SDL_Rect Jouer_Rect;
+        SDL_Surface *Jouer_Surface;
+        SDL_Rect Quitter_Rect;
+        SDL_Surface *Quitter_Surface;
+}menu;
+
+#endif // MENU_H_INCLUDED
